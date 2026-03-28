@@ -2,16 +2,16 @@ services:
   gateway:
     image: nginx:stable-perl
     restart: always
-    ports:
-      - "${GATEWAY_PORT:-80}:80"
     volumes:
       - ./config/nginx/:/etc/nginx/conf.d/
     depends_on:
       - api
       - apichat
     networks:
+      nginx:
+        ipv4_address: 172.27.0.6
       causeries:
-        ipv4_address: 172.18.0.2
+        ipv4_address: 172.28.0.2
 
   api:
     image: ghcr.io/maw2-causeries/api:latest
@@ -31,7 +31,7 @@ services:
         condition: service_healthy
     networks:
       causeries:
-        ipv4_address: 172.18.0.3
+        ipv4_address: 172.28.0.3
 
   db:
     image: mysql:8.0
@@ -44,7 +44,7 @@ services:
       - ./data/db:/var/lib/mysql
     networks:
       causeries:
-        ipv4_address: 172.18.0.6
+        ipv4_address: 172.28.0.6
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 30s
@@ -66,7 +66,7 @@ services:
         condition: service_healthy
     networks:
       causeries:
-        ipv4_address: 172.18.0.4
+        ipv4_address: 172.28.0.4
 
   scylla:
     image: scylladb/scylla:2025.3
@@ -79,7 +79,7 @@ services:
       - ./data/scylla:/var/lib/scylla
     networks:
       causeries:
-        ipv4_address: 172.18.0.5
+        ipv4_address: 172.28.0.5
     healthcheck:
       test: ["CMD", "cqlsh", "-e", "describe keyspaces"]
       interval: 1m30s
@@ -88,9 +88,11 @@ services:
       start_period: 30s
 
 networks:
+  nginx:
+    external: true
   causeries:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.18.0.0/24
-          gateway: 172.18.0.1
+        - subnet: 172.28.0.0/24
+          gateway: 172.28.0.1
