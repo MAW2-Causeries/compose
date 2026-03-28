@@ -1,0 +1,96 @@
+services:
+  gateway:
+    image: nginx:stable-perl
+    restart: always
+    ports:
+      - "${GATEWAY_PORT:-80}:80"
+    volumes:
+      - ./config/nginx/:/etc/nginx/conf.d/
+    depends_on:
+      - api
+      - apichat
+    networks:
+      causeries:
+        ipv4_address: 172.18.0.2
+
+  api:
+    image: ghcr.io/maw2-causeries/api:latest
+    environment:
+      RAILS_MASTER_KEY: ${RAILS_MASTER_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      DATABASE_HOST: db
+      DATABASE_PORT: 3306
+      DATABASE_USERNAME: api_db_user
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      DATABASE_NAME: api_db
+      API_JWT_BYPASS_HOSTS: "api,apichat"
+    volumes:
+      - ./data/api:/rails/storage
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      causeries:
+        ipv4_address: 172.18.0.3
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DATABASE_ROOT_PASSWORD}
+      MYSQL_DATABASE: api_db
+      MYSQL_USER: api_db_user
+      MYSQL_PASSWORD: ${DATABASE_PASSWORD}
+    volumes:
+      - ./data/db:/var/lib/mysql
+    networks:
+      causeries:
+        ipv4_address: 172.18.0.6
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  apichat:
+    image: ghcr.io/maw2-causeries/api-chat:latest
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      SCYLLA_HOST: scylla
+      SCYLLA_PORT: 9042
+      SCYLLA_USER: ""
+      SCYLLA_PASS: ""
+      SCYLLA_KEYSPACE: causeries
+      BASE_API_URL: "http://api/api/v1"
+    depends_on:
+      scylla:
+        condition: service_healthy
+    networks:
+      causeries:
+        ipv4_address: 172.18.0.4
+
+  scylla:
+    image: scylladb/scylla:2025.3
+    environment:
+      SCYLLA_CLUSTER_NAME: "causeries-cluster"
+      SCYLLA_DC: "dc1"
+      SCYLLA_RACK: "rack1"
+      SCYLLA_SEEDS: "scylla"
+    volumes:
+      - ./data/scylla:/var/lib/scylla
+    networks:
+      causeries:
+        ipv4_address: 172.18.0.5
+    healthcheck:
+      test: ["CMD", "cqlsh", "-e", "describe keyspaces"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+
+networks:
+  causeries:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.0.0/24
+          gateway: 172.18.0.1
