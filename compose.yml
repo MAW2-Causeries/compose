@@ -23,7 +23,7 @@ services:
       DATABASE_USERNAME: api_db_user
       DATABASE_PASSWORD: ${DATABASE_PASSWORD}
       DATABASE_NAME: api_db
-      API_JWT_BYPASS_HOSTS: "api,apichat"
+      MASTER_SECRET_TOKEN: ${MASTER_SECRET_TOKEN}
     volumes:
       - ./data/api:/rails/storage
     depends_on:
@@ -61,6 +61,7 @@ services:
       SCYLLA_PASS: ""
       SCYLLA_KEYSPACE: causeries
       BASE_API_URL: "http://api/api/v1"
+      MASTER_SECRET_TOKEN: ${MASTER_SECRET_TOKEN}
     depends_on:
       scylla:
         condition: service_healthy
